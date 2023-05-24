@@ -1,5 +1,5 @@
-exports.version = 1.0
-exports.description = "Show thumbnails for images in place of icons"
+exports.version = 0.1
+exports.description = "DON'T INSTALL - NOT READY YET - Show thumbnails for images in place of icons"
 exports.apiRequired = 8.2 // platform-dependent distribution
 exports.frontend_js = 'main.js'
 exports.repo = 'rejetto/thumbnails'
