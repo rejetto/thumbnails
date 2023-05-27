@@ -2,7 +2,7 @@ exports.version = 0.2
 exports.description = "DON'T INSTALL - NOT READY YET - Show thumbnails for images in place of icons"
 exports.apiRequired = 8.2 // platform-dependent distribution
 exports.frontend_js = 'main.js'
-exports.repo = 'rejetto/thumbnails'
+exports.repo = "rejetto/thumbnails"
 exports.config = {
     cache: {
         type: 'select',
@@ -50,7 +50,7 @@ exports.init = api => {
                 const h = Number(ctx.query.h)
                 const quality = 60
                 ctx.set(header, 'generated')
-                const generated = sharp ? Buffer.from(await sharp(buffer).resize(w, h||w).jpeg({ quality }).toBuffer())
+                const generated = sharp ? Buffer.from(await sharp(buffer).resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
                     : await new Promise(async (resolve, reject) => { // fallback
                         const img = await Jimp.read(buffer)
                         img.scaleToFit(w, h).quality(quality).getBuffer('image/jpeg', (e, data) =>
