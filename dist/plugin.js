@@ -1,4 +1,4 @@
-exports.version = 0.1
+exports.version = 0.2
 exports.description = "DON'T INSTALL - NOT READY YET - Show thumbnails for images in place of icons"
 exports.apiRequired = 8.2 // platform-dependent distribution
 exports.frontend_js = 'main.js'
@@ -23,25 +23,9 @@ exports.config = {
 
 const THUMB_SIZE = 256
 
-self = globalThis
-require('./jimp.min')
-const { Jimp } = self
-globalThis.fetch ??= require('./unfetch') // polyfill node16
-
-let sharp
-try { sharp = require('sharp') }
-catch { console.debug('no sharp') }
-
-const sharpZips = {
-    common: 'https://github.com/rejetto/thumbnails/raw/main/zip/common.zip',
-    linux: 'https://github.com/rejetto/thumbnails/raw/main/zip/linux.zip',
-    macarm: 'https://github.com/rejetto/thumbnails/raw/main/zip/macarm.zip',
-    mac: 'https://github.com/rejetto/thumbnails/raw/main/zip/mac.zip',
-    win: 'https://github.com/rejetto/thumbnails/raw/main/zip/win.zip',
-}
+const sharp = require('sharp')
 
 exports.init = api => {
-    api.log('sharp', Boolean(sharp))
     const { onOff } = api.require('./misc')
     const ramCache = new Map()
     const header = 'x-thumbnail'
