@@ -1,19 +1,21 @@
-exports.version = 0.2
-exports.description = "DON'T INSTALL - NOT READY YET - Show thumbnails for images in place of icons"
-exports.apiRequired = 8.2 // platform-dependent distribution
+exports.version = 0.3
+exports.description = "Show thumbnails for images in place of icons"
+exports.apiRequired = 8.21 // storageDir
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
 exports.config = {
     cache: {
         type: 'select',
-        defaultValue: 'ram',
+        defaultValue: 'storage',
+        xs: 6,
         options: {
-            ram: "volatile/RAM",
-            embed: "embed in image file",
+            "volatile (RAM)": 'ram',
+            "disk storage": 'storage',
         }
     },
     fullThreshold: {
         type: 'number',
+        xs: 6,
         unit: 'KB',
         defaultValue: 100,
         min: 0,
@@ -21,15 +23,25 @@ exports.config = {
     },
 }
 
+exports.configDialog = {
+    maxWidth: 'xs',
+}
+
 const THUMB_SIZE = 256
 
 const sharp = require('sharp')
+const { Database } = require('rippledb')
 
 exports.init = api => {
     const { onOff } = api.require('./misc')
     const ramCache = new Map()
+    const dbCache = new Database(api.storageDir + 'cache')
     const header = 'x-thumbnail'
     return {
+        unload() {
+            ramCache.clear()
+            return dbCache.close() // without this we get a filehandle open warning
+        },
         middleware(ctx) {
             return async () => {
                 if (ctx.query.get !== 'thumb' || !ctx.body) return // !body includes 304 responses
@@ -43,7 +55,16 @@ exports.init = api => {
                 const {size} = ctx.fileStats
                 if (size < api.getConfig('fullThreshold') * 1024)
                     return ctx.redirect(ctx.state.revProxyPath + ctx.originalUrl.replace(/\?.+$/,''))
-                if (fromCache()) return
+
+                // try cache
+                const cacheKey = ctx.fileSource
+                const cacheType = api.getConfig('cache')
+                const cached = cacheType === 'storage' ? await dbCache.get(cacheKey)
+                    : ramCache.get(cacheKey)
+                if (cached) {
+                    ctx.set(header, 'cache')
+                    return ctx.body = Buffer.from(cached)
+                }
                 // generate new thumbnail
                 buffer = await getFromStream(ctx.body, Infinity, { buffer }) // read the rest
                 const w = Number(ctx.query.w) || THUMB_SIZE
@@ -58,21 +79,11 @@ exports.init = api => {
                         ctx.set(header, 'generated-jimp')
                     })
                 ctx.body = generated
-                storeInCache(generated)
+                if (cacheType === 'storage')
+                    dbCache.put(cacheKey, generated) // don't wait
+                else
+                    ramCache.set(cacheKey, generated)
             }
-
-            function fromCache() {
-                //const cache = api.getConfig('cache')
-                const thumb = ramCache.get(ctx.fileSource)
-                if (!thumb) return
-                ctx.set(header, 'cache')
-                return ctx.body = thumb
-            }
-
-            function storeInCache(thumb) {
-                ramCache.set(ctx.fileSource, thumb)
-            }
-
         }
     }
 
