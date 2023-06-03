@@ -46,25 +46,26 @@ exports.init = api => {
             return async () => {
                 if (ctx.query.get !== 'thumb' || !ctx.body) return // !body includes 304 responses
                 let buffer = await getFromStream(ctx.body, 96 * 1024)
+                // try cache
+                const cacheKey = ctx.fileSource
+                const cacheRam = api.getConfig('cache') === 'ram'
+                const cached = cacheRam ? ramCache.get(cacheKey)
+                    : await dbCache.get(cacheKey).catch(failSilently)
+                if (cached) {
+                    ctx.set(header, 'cache')
+                    return ctx.body = Buffer.from(cached)
+                }
+                // try embedded
                 const thumb = readThumb(buffer)
                 ctx.set(header, 'NOPE')
                 if (thumb) {
                     ctx.set(header, 'embedded')
                     return ctx.body = thumb
                 }
+                // consider full file
                 const {size} = ctx.fileStats
                 if (size < api.getConfig('fullThreshold') * 1024)
                     return ctx.redirect(ctx.state.revProxyPath + ctx.originalUrl.replace(/\?.+$/,''))
-
-                // try cache
-                const cacheKey = ctx.fileSource
-                const cacheType = api.getConfig('cache')
-                const cached = cacheType === 'storage' ? await dbCache.get(cacheKey)
-                    : ramCache.get(cacheKey)
-                if (cached) {
-                    ctx.set(header, 'cache')
-                    return ctx.body = Buffer.from(cached)
-                }
                 // generate new thumbnail
                 buffer = await getFromStream(ctx.body, Infinity, { buffer }) // read the rest
                 const w = Number(ctx.query.w) || THUMB_SIZE
@@ -79,12 +80,16 @@ exports.init = api => {
                         ctx.set(header, 'generated-jimp')
                     })
                 ctx.body = generated
-                if (cacheType === 'storage')
-                    dbCache.put(cacheKey, generated) // don't wait
-                else
+                if (cacheRam)
                     ramCache.set(cacheKey, generated)
+                else
+                    dbCache.put(cacheKey, generated).catch(failSilently) // don't wait
             }
         }
+    }
+
+    function failSilently(e) {
+        console.debug(`thumbnails db failed: ${e.message || e}`)
     }
 
     function readThumb(buffer) {
