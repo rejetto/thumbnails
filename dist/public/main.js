@@ -29,7 +29,8 @@
         }, console.log(entry.getNextFiltered())] )
 
     function isSupported(entry) {
-        return /\.(jpe?g|png|webp|tif)$/i.test(entry.n)
+        return entry._th // calculated server-side
+            || /\.(jpe?g|png|webp|tif)$/i.test(entry.n)
             || HFS.emit('thumbnails_supported', { entry }).some(Boolean)
     }
 }
