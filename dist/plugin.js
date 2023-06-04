@@ -1,6 +1,6 @@
-exports.version = 0.3
+exports.version = 0.4
 exports.description = "Show thumbnails for images in place of icons"
-exports.apiRequired = 8.21 // storageDir
+exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
 exports.config = {
@@ -9,7 +9,7 @@ exports.config = {
         defaultValue: 'storage',
         xs: 6,
         options: {
-            "volatile (RAM)": 'ram',
+            "RAM (volatile)": 'ram',
             "disk storage": 'storage',
         }
     },
@@ -54,6 +54,12 @@ exports.init = api => {
                 if (cached) {
                     ctx.set(header, 'cache')
                     return ctx.body = Buffer.from(cached)
+                }
+                // call for other plugins
+                const [custom] = api.customApiCall('thumbnails_get', { ctx, path: ctx.fileSource })
+                if (custom !== undefined) {
+                    ctx.set(header, 'custom')
+                    return ctx.body = custom
                 }
                 // try embedded
                 const thumb = readThumb(buffer)

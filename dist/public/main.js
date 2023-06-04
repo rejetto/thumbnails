@@ -26,9 +26,10 @@
                 setTimeout(() => // give some time to see effect
                     HFS.dialogLib.alertDialog("To switch back, click Options"), 1000)
             }
-        }, console.log(entry.getNextFiltered())])
+        }, console.log(entry.getNextFiltered())] )
 
     function isSupported(entry) {
         return /\.(jpe?g|png|webp|tif)$/i.test(entry.n)
+            || HFS.emit('thumbnails_supported', { entry }).some(Boolean)
     }
 }
