@@ -1,4 +1,4 @@
-exports.version = 0.4
+exports.version = 0.5
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
@@ -30,17 +30,18 @@ exports.configDialog = {
 const THUMB_SIZE = 256
 
 const sharp = require('sharp')
-const { Database } = require('rippledb')
+const { Level } = require('level')
 
-exports.init = api => {
+exports.init = async api => {
     const { onOff } = api.require('./misc')
     const ramCache = new Map()
-    const dbCache = new Database(api.storageDir + 'cache')
+    const dbCache = new Level(api.storageDir + 'cache', { valueEncoding: 'buffer' })
+    await dbCache.open()
     const header = 'x-thumbnail'
     return {
         unload() {
             ramCache.clear()
-            return dbCache.close() // without this we get a filehandle open warning
+            return dbCache.close()
         },
         middleware(ctx) {
             return async () => {
