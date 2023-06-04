@@ -1,21 +1,11 @@
-exports.version = 0.5
+exports.version = 0.51
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
 exports.config = {
-    cache: {
-        type: 'select',
-        defaultValue: 'storage',
-        xs: 6,
-        options: {
-            "RAM (volatile)": 'ram',
-            "disk storage": 'storage',
-        }
-    },
     fullThreshold: {
         type: 'number',
-        xs: 6,
         unit: 'KB',
         defaultValue: 100,
         min: 0,
@@ -29,18 +19,15 @@ exports.configDialog = {
 
 const THUMB_SIZE = 256
 
-const sharp = require('sharp')
-const { Level } = require('level')
-
 exports.init = async api => {
+    const sharp = require('sharp')
+    const { Level } = require('level')
     const { onOff } = api.require('./misc')
-    const ramCache = new Map()
     const dbCache = new Level(api.storageDir + 'cache', { valueEncoding: 'buffer' })
     await dbCache.open()
     const header = 'x-thumbnail'
     return {
         unload() {
-            ramCache.clear()
             return dbCache.close()
         },
         middleware(ctx) {
@@ -49,9 +36,7 @@ exports.init = async api => {
                 let buffer = await getFromStream(ctx.body, 96 * 1024)
                 // try cache
                 const cacheKey = ctx.fileSource
-                const cacheRam = api.getConfig('cache') === 'ram'
-                const cached = cacheRam ? ramCache.get(cacheKey)
-                    : await dbCache.get(cacheKey).catch(failSilently)
+                const cached = await dbCache.get(cacheKey).catch(failSilently)
                 if (cached) {
                     ctx.set(header, 'cache')
                     return ctx.body = Buffer.from(cached)
@@ -87,10 +72,7 @@ exports.init = async api => {
                         ctx.set(header, 'generated-jimp')
                     })
                 ctx.body = generated
-                if (cacheRam)
-                    ramCache.set(cacheKey, generated)
-                else
-                    dbCache.put(cacheKey, generated).catch(failSilently) // don't wait
+                dbCache.put(cacheKey, generated).catch(failSilently) // don't wait
             }
         }
     }
