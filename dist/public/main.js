@@ -3,7 +3,7 @@
 
     HFS.onEvent('entryIcon', ({ entry }) =>
         isSupported(entry) && h(ImgFallback, {
-            src: entry.n + '?get=thumb',
+            src: entry.uri + '?get=thumb',
             className: 'icon thumbnail',
             fallback: () => entry.getDefaultIcon()
         })
