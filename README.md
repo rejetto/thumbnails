@@ -1,3 +1,9 @@
+# Thumbnails
+
+HFS plugin to show thumbnails for images in place of icons. Works best on "tiles mode" (enable it in frontend's options).
+
+<img width="700" alt="image" src="https://github.com/rejetto/thumbnails/assets/1367199/d74a8a24-a6f8-4460-93de-74d9d6bd413f">
+
 # Extendable
 
 This plugin is extendable: other plugins can add support for more formats without having to care of all details,
