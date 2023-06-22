@@ -1,4 +1,4 @@
-exports.version = 0.52
+exports.version = 0.53
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
