@@ -1,4 +1,4 @@
-exports.version = 0.53
+exports.version = 0.54
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
@@ -33,6 +33,7 @@ exports.init = async api => {
         middleware(ctx) {
             return async () => {
                 if (ctx.query.get !== 'thumb' || !ctx.body) return // !body includes 304 responses
+                ctx.state.download_counter_ignore = true
                 let buffer = await getFromStream(ctx.body, 96 * 1024)
                 // try cache
                 const cacheKey = ctx.fileSource
