@@ -22,7 +22,7 @@
             icon: '⚃',
             label: "Enable tiles mode",
             onClick() {
-                HFS.state.tiles = 5
+                HFS.state.tiles = 10
                 setTimeout(() => // give some time to see effect
                     HFS.dialogLib.alertDialog("To switch back, click Options"), 1000)
             }
@@ -30,7 +30,7 @@
 
     function isSupported(entry) {
         return entry._th // calculated server-side
-            || /(jpe?g|png|webp|tiff?)$/.test(entry.ext)
+            || /jpe?g|png|webp|tiff?/.test(entry.ext)
             || HFS.emit('thumbnails_supported', { entry }).some(Boolean)
     }
 }
