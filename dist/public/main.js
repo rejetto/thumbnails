@@ -1,4 +1,4 @@
-{
+'use strict';{
     const { h } = HFS
 
     HFS.onEvent('entryIcon', ({ entry }) =>
