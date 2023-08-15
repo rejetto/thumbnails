@@ -1,4 +1,4 @@
-exports.version = 1.02
+exports.version = 1.03
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
@@ -101,17 +101,17 @@ exports.init = async api => {
         return new Promise((resolve, reject) => {
             buffer ??= Buffer.alloc(0)
             const off = onOff(stream, {
-                end,
+                end: stop,
                 error: reject,
                 data(chunk) {
                     buffer = Buffer.concat([buffer, chunk])
                     if (buffer.length >= bytes)
-                        end()
+                        stop()
                 }
             })
             stream.resume()
 
-            function end() {
+            function stop() {
                 off()
                 stream.pause()
                 resolve(buffer)
