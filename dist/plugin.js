@@ -1,4 +1,4 @@
-exports.version = 1.03
+exports.version = 1.1
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
@@ -10,12 +10,18 @@ exports.config = {
         defaultValue: 100,
         min: 0,
         label: "Serve full file if size is less than",
+        sm: 6,
     },
     log: {
         type: 'boolean',
         defaultValue: false,
         label: "Include thumbnails in log",
     },
+    showTilesInMenu: {
+        frontend: true,
+        type: 'boolean',
+        defaultValue: true,
+    }
 }
 
 exports.configDialog = {

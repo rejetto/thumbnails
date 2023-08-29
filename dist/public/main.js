@@ -1,12 +1,13 @@
 'use strict';{
     const { h, t } = HFS
+    const config = HFS.getPluginConfig()
 
     HFS.onEvent('entryIcon', ({ entry }) =>
-        isSupported(entry) && h(ImgFallback, {
-            src: entry.uri + '?get=thumb',
-            className: 'icon thumbnail',
-            fallback: () => entry.getDefaultIcon()
-        })
+            isSupported(entry) && h(ImgFallback, {
+                src: entry.uri + '?get=thumb',
+                className: 'icon thumbnail',
+                fallback: () => entry.getDefaultIcon()
+            })
     )
 
     function ImgFallback({ fallback, ...rest }) {
@@ -18,7 +19,7 @@
     }
 
     HFS.onEvent('fileMenu', ({ entry }) =>
-        !HFS.state.tiles && isSupported(entry) && [{
+        config.showTilesInMenu && !HFS.state.tiles && isSupported(entry) && [{
             icon: '⊞',
             label: t("Enable tiles mode"),
             onClick() {
