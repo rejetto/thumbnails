@@ -1,8 +1,9 @@
-exports.version = 1.1
+exports.version = 2.0
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
+exports.depend = [{ "repo": "rejetto/sharp", "version": 1 }]
 exports.config = {
     fullThreshold: {
         type: 'number',
@@ -31,10 +32,11 @@ exports.configDialog = {
 const THUMB_SIZE = 256
 
 exports.init = async api => {
-    const sharp = require('sharp')
-    const { Level } = require('level')
     const { onOff } = api.require('./misc')
-    const dbCache = new Level(api.storageDir + 'cache', { valueEncoding: 'buffer' })
+    const level = api.customApiCall('level')[0]
+    if (!level)
+        throw "please install sharp plugin"
+    const dbCache = new level.Level(api.storageDir + 'cache', { valueEncoding: 'buffer' })
     await dbCache.open()
     const header = 'x-thumbnail'
     return {
@@ -78,15 +80,11 @@ exports.init = async api => {
                 const h = Number(ctx.query.h)
                 const quality = 60
                 ctx.set(header, 'generated')
-                const generated = sharp ? Buffer.from(await sharp(buffer).resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
-                    : await new Promise(async (resolve, reject) => { // fallback
-                        const img = await Jimp.read(buffer)
-                        img.scaleToFit(w, h).quality(quality).getBuffer('image/jpeg', (e, data) =>
-                            e ? reject(e) : resolve(data))
-                        ctx.set(header, 'generated-jimp')
-                    })
-                ctx.body = generated
-                dbCache.put(cacheKey, generated).catch(failSilently) // don't wait
+                const res = api.customApiCall('sharp', buffer)[0]
+                if (!res)
+                    return ctx.body = 'missing "sharp" plugin'
+                ctx.body = Buffer.from(await res.resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
+                dbCache.put(cacheKey, ctx.body).catch(failSilently) // don't wait
             }
         }
     }
