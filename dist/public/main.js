@@ -31,7 +31,7 @@
 
     function isSupported(entry) {
         return entry._th // calculated server-side
-            || /jpe?g|png|webp|tiff?/.test(entry.ext)
+            || ['jpg','jpeg','png','webp','tiff','tif','gif','avif','svg'].includes(entry.ext)
             || HFS.emit('thumbnails_supported', { entry }).some(Boolean)
     }
 }
