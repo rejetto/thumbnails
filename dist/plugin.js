@@ -50,13 +50,6 @@ exports.init = async api => {
                     ctx.state.dont_log = true
                 ctx.state.download_counter_ignore = true
                 let buffer = await getFromStream(ctx.body, 96 * 1024)
-                // try cache
-                const cacheKey = ctx.fileSource
-                const cached = await dbCache.get(cacheKey).catch(failSilently)
-                if (cached) {
-                    ctx.set(header, 'cache')
-                    return ctx.body = Buffer.from(cached)
-                }
                 // call for other plugins
                 const [custom] = api.customApiCall('thumbnails_get', { ctx, path: ctx.fileSource })
                 if (custom !== undefined) {
@@ -74,6 +67,13 @@ exports.init = async api => {
                 const {size} = ctx.fileStats
                 if (size < api.getConfig('fullThreshold') * 1024)
                     return ctx.redirect(ctx.state.revProxyPath + ctx.originalUrl.replace(/\?.+$/,''))
+                // try cache
+                const cacheKey = ctx.fileSource
+                const cached = await dbCache.get(cacheKey).catch(failSilently)
+                if (cached) {
+                    ctx.set(header, 'cache')
+                    return ctx.body = Buffer.from(cached)
+                }
                 // generate new thumbnail
                 buffer = await getFromStream(ctx.body, Infinity, { buffer }) // read the rest
                 const w = Number(ctx.query.w) || THUMB_SIZE
