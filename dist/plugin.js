@@ -1,4 +1,4 @@
-exports.version = 2.11
+exports.version = 2.12
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.21 // storageDir, customApi
 exports.frontend_js = 'main.js'
@@ -51,7 +51,8 @@ exports.init = async api => {
                 ctx.state.download_counter_ignore = true
                 let buffer = await getFromStream(ctx.body, 96 * 1024)
                 // call for other plugins
-                const [custom] = api.customApiCall('thumbnails_get', { ctx, path: ctx.fileSource })
+                const others = api.customApiCall('thumbnails_get', { ctx, path: ctx.fileSource })
+                const custom = await others[0]
                 if (custom !== undefined) {
                     ctx.set(header, 'custom')
                     return ctx.body = custom
@@ -90,7 +91,7 @@ exports.init = async api => {
     }
 
     function failSilently(e) {
-        console.debug(`thumbnails db failed: ${e.message || e}`)
+        console.debug(`thumbnails db: ${e.message || e}`)
     }
 
     function readThumb(buffer) {
