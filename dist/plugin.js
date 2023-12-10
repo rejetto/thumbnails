@@ -1,6 +1,6 @@
-exports.version = 2.13
+exports.version = 2.14
 exports.description = "Show thumbnails for images in place of icons"
-exports.apiRequired = 8.21 // storageDir, customApi
+exports.apiRequired = 8.6 // translations
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
 exports.depend = [{ "repo": "rejetto/sharp", "version": 1 }]
