@@ -1,4 +1,4 @@
-exports.version = 2.14
+exports.version = 2.15
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.6 // translations
 exports.frontend_js = 'main.js'
@@ -32,7 +32,9 @@ exports.configDialog = {
 const THUMB_SIZE = 256
 
 exports.init = async api => {
-    const { onOff } = api.require('./misc')
+    const { createReadStream } = api.require('fs')
+    const { buffer } = api.require('node:stream/consumers')
+
     const level = api.customApiCall('level')[0]
     if (!level)
         throw "please install sharp plugin"
@@ -44,13 +46,13 @@ exports.init = async api => {
             return dbCache.close()
         },
         middleware(ctx) {
+            if (ctx.query.get !== 'thumb') return
+            ctx.state.considerAsGui = true
+            ctx.state.download_counter_ignore = true
             return async () => {
-                if (ctx.query.get !== 'thumb' || !ctx.body) return // !body includes 304 responses
+                if (!ctx.body) return // !body includes 304 responses
                 if (!api.getConfig('log'))
                     ctx.state.dont_log = true
-                ctx.state.download_counter_ignore = true
-                const PREBUFFER = 96 * 1024
-                let buffer = await getFromStream(ctx.body, PREBUFFER)
                 // call for other plugins
                 const others = api.customApiCall('thumbnails_get', { ctx, path: ctx.fileSource })
                 const custom = await others[0]
@@ -59,16 +61,17 @@ exports.init = async api => {
                     return ctx.body = custom
                 }
                 // try embedded
-                const thumb = readThumb(buffer)
-                ctx.set(header, 'NOPE')
+                const head = await buffer(createReadStream(ctx.fileSource, { start: 0 , end: 96 * 1024 }))
+                const thumb = readThumb(head)
                 if (thumb) {
                     ctx.set(header, 'embedded')
                     return ctx.body = thumb
                 }
+                ctx.set(header, 'NOPE')
                 // consider full file
                 const {size} = ctx.fileStats
                 if (size < api.getConfig('fullThreshold') * 1024)
-                    return ctx.redirect(ctx.state.revProxyPath + ctx.originalUrl.replace(/\?.+$/,''))
+                    return // leave it to existing ctx.body
                 // try cache
                 const cacheKey = ctx.fileSource
                 const cached = await dbCache.get(cacheKey).catch(failSilently)
@@ -77,13 +80,12 @@ exports.init = async api => {
                     return ctx.body = Buffer.from(cached)
                 }
                 // generate new thumbnail
-                if (size > PREBUFFER)
-                    buffer = await getFromStream(ctx.body, Infinity, { buffer }) // read the rest
+                const content = await buffer(ctx.body)
                 const w = Number(ctx.query.w) || THUMB_SIZE
                 const h = Number(ctx.query.h)
                 const quality = 60
                 ctx.set(header, 'generated')
-                const res = api.customApiCall('sharp', buffer)[0]
+                const res = api.customApiCall('sharp', content)[0]
                 if (!res)
                     return ctx.body = 'missing "sharp" plugin'
                 ctx.body = Buffer.from(await res.resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
@@ -102,28 +104,6 @@ exports.init = async api => {
         const end = buffer.indexOf('\xFF\xD9', start)
         if (end < 0) return
         return buffer.slice(start, end)
-    }
-
-    function getFromStream(stream, bytes, { buffer }={}) {
-        return new Promise((resolve, reject) => {
-            buffer ??= Buffer.alloc(0)
-            const off = onOff(stream, {
-                end: stop,
-                error: reject,
-                data(chunk) {
-                    buffer = Buffer.concat([buffer, chunk])
-                    if (buffer.length >= bytes)
-                        stop()
-                }
-            })
-            stream.resume()
-
-            function stop() {
-                off()
-                stream.pause()
-                resolve(buffer)
-            }
-        })
     }
 
 }
