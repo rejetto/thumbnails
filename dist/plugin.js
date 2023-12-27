@@ -1,4 +1,4 @@
-exports.version = 2.15
+exports.version = 2.16
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.6 // translations
 exports.frontend_js = 'main.js'
@@ -52,7 +52,7 @@ exports.init = async api => {
             return async () => {
                 if (!ctx.body) return // !body includes 304 responses
                 if (!api.getConfig('log'))
-                    ctx.state.dont_log = true
+                    ctx.state.dontLog = true
                 // call for other plugins
                 const others = api.customApiCall('thumbnails_get', { ctx, path: ctx.fileSource })
                 const custom = await others[0]
