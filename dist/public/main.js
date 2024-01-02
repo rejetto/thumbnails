@@ -23,7 +23,7 @@
             icon: '⊞',
             label: t("Enable tiles mode"),
             onClick() {
-                HFS.state.tiles = 10
+                HFS.state.tile_size = 10
                 setTimeout(() => // give some time to see effect
                     HFS.dialogLib.alertDialog(t('thumbnails_switchBack', "To switch back, click Options")), 1000)
             }
