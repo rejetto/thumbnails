@@ -1,6 +1,6 @@
-exports.version = 2.17
+exports.version = 2.18
 exports.description = "Show thumbnails for images in place of icons"
-exports.apiRequired = 8.6 // translations
+exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
 exports.depend = [{ "repo": "rejetto/sharp", "version": 1 }]
@@ -54,14 +54,14 @@ exports.init = async api => {
                 if (!api.getConfig('log'))
                     ctx.state.dontLog = true
                 // call for other plugins
-                const others = api.customApiCall('thumbnails_get', { ctx, path: ctx.fileSource })
+                const others = api.customApiCall('thumbnails_get', { ctx, path: ctx.state.fileSource })
                 const custom = await others[0]
                 if (custom !== undefined) {
                     ctx.set(header, 'custom')
                     return ctx.body = custom
                 }
                 // try embedded
-                const head = await buffer(createReadStream(ctx.fileSource, { start: 0 , end: 96 * 1024 }))
+                const head = await buffer(createReadStream(ctx.state.fileSource, { start: 0 , end: 96 * 1024 }))
                 const thumb = readThumb(head)
                 if (thumb) {
                     ctx.set(header, 'embedded')
@@ -69,11 +69,11 @@ exports.init = async api => {
                 }
                 ctx.set(header, 'NOPE')
                 // consider full file
-                const {size} = ctx.fileStats
+                const {size} = ctx.state.fileStats
                 if (size < api.getConfig('fullThreshold') * 1024)
                     return // leave it to existing ctx.body
                 // try cache
-                const cacheKey = ctx.fileSource
+                const cacheKey = ctx.state.fileSource
                 const cached = await dbCache.get(cacheKey).catch(failSilently)
                 if (cached) {
                     ctx.set(header, 'cache')
