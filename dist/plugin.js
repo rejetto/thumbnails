@@ -1,4 +1,4 @@
-exports.version = 2.18
+exports.version = 2.19
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -83,7 +83,7 @@ exports.init = async api => {
                 const content = await buffer(ctx.body)
                 const w = Number(ctx.query.w) || THUMB_SIZE
                 const h = Number(ctx.query.h)
-                const quality = 60
+                const quality = 30
                 ctx.set(header, 'generated')
                 const res = api.customApiCall('sharp', content)[0]
                 if (!res)
