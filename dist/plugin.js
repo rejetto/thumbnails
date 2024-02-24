@@ -1,4 +1,4 @@
-exports.version = 2.19
+exports.version = 3
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -22,7 +22,13 @@ exports.config = {
         frontend: true,
         type: 'boolean',
         defaultValue: true,
-    }
+    },
+    videos: {
+        frontend: true,
+        type: 'boolean',
+        defaultValue: false,
+        label: "Enable experimental videos support",
+    },
 }
 
 exports.configDialog = {

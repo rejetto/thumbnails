@@ -8,11 +8,18 @@
                 className: 'icon thumbnail',
                 fallback: () => entry.getDefaultIcon()
             })
+            || config.videos && ['mp4','webm','mov','avi'].includes(entry.ext) && h(ImgFallback, {
+                tag: 'video',
+                src: entry.uri,
+                className: 'icon thumbnail',
+                disableRemotePlayback: true,
+                fallback: () => entry.getDefaultIcon()
+            })
     )
 
-    function ImgFallback({ fallback, ...rest }) {
+    function ImgFallback({ fallback, tag='img', ...rest }) {
         const [err,setErr] = HFS.React.useState()
-        return err ? h(fallback) : h('img', {
+        return err ? h(fallback) : h(tag, {
             ...rest,
             onError() { setErr(true) }
         })
