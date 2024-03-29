@@ -6,20 +6,20 @@
             isSupported(entry) && h(ImgFallback, {
                 src: entry.uri + '?get=thumb',
                 className: 'icon thumbnail',
-                fallback: () => entry.getDefaultIcon()
+                fallback: () => entry.getDefaultIcon(),
             })
             || config.videos && ['mp4','webm','mov','avi'].includes(entry.ext) && h(ImgFallback, {
                 tag: 'video',
                 src: entry.uri,
                 className: 'icon thumbnail',
                 disableRemotePlayback: true,
-                fallback: () => entry.getDefaultIcon()
+                fallback: () => entry.getDefaultIcon(),
             })
     )
 
     function ImgFallback({ fallback, tag='img', ...rest }) {
         const [err,setErr] = HFS.React.useState()
-        return err ? h(fallback) : h(tag, {
+        return err ? fallback && h(fallback) : h(tag, {
             ...rest,
             onError() { setErr(true) }
         })
