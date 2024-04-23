@@ -1,4 +1,4 @@
-exports.version = 3.1
+exports.version = 3.12
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -93,10 +93,23 @@ exports.init = async api => {
                 ctx.set(header, 'generated')
                 const res = api.customApiCall('sharp', content)[0]
                 if (!res)
-                    return ctx.body = 'missing "sharp" plugin'
-                ctx.body = Buffer.from(await res.resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
+                    return error(500, 'missing "sharp" plugin')
+                try {
+                    ctx.body = Buffer.from(await res.resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
+                }
+                catch(e) {
+                    console.debug('thumbnails plugin:', e.message || e)
+                    return error(501, e.message || String(e))
+                }
                 dbCache.put(cacheKey, ctx.body).catch(failSilently) // don't wait
             }
+
+            function error(code, body) {
+                ctx.status = code
+                ctx.type = 'text'
+                ctx.body = body
+            }
+
         }
     }
 
