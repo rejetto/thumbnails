@@ -1,4 +1,4 @@
-exports.version = 3.12
+exports.version = 4
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -38,19 +38,13 @@ exports.configDialog = {
 const THUMB_SIZE = 256
 
 exports.init = async api => {
-    const { createReadStream } = api.require('fs')
+    const { createReadStream, rm } = api.require('fs')
     const { buffer } = api.require('node:stream/consumers')
+    const { loadFileAttr, storeFileAttr } = api.require('./misc')
 
-    const level = api.customApiCall('level')[0]
-    if (!level)
-        throw "please install sharp plugin"
-    const dbCache = new level.Level(api.storageDir + 'cache', { valueEncoding: 'buffer' })
-    await dbCache.open()
+    rm(api.storageDir + 'cache',  { recursive: true, force: true }, () => {}) // remove legacy db
     const header = 'x-thumbnail'
     return {
-        unload() {
-            return dbCache.close()
-        },
         middleware(ctx) {
             if (ctx.query.get !== 'thumb') return
             ctx.state.considerAsGui = true
@@ -67,7 +61,8 @@ exports.init = async api => {
                     return ctx.body = custom
                 }
                 // try embedded
-                const head = await buffer(createReadStream(ctx.state.fileSource, { start: 0 , end: 96 * 1024 }))
+                const {fileSource} = ctx.state
+                const head = await buffer(createReadStream(fileSource, { start: 0 , end: 96 * 1024 }))
                 const thumb = readThumb(head)
                 if (thumb) {
                     ctx.set(header, 'embedded')
@@ -75,21 +70,21 @@ exports.init = async api => {
                 }
                 ctx.set(header, 'NOPE')
                 // consider full file
-                const {size} = ctx.state.fileStats
+                const {size, mtimeMs: ts} = ctx.state.fileStats
                 if (size < api.getConfig('fullThreshold') * 1024)
                     return // leave it to existing ctx.body
                 // try cache
-                const cacheKey = ctx.state.fileSource
-                const cached = await dbCache.get(cacheKey).catch(failSilently)
-                if (cached) {
+                const K = 'thumbnail'
+                const cached = await loadFileAttr(fileSource, K).catch(failSilently)
+                if (cached?.ts === ts) {
                     ctx.set(header, 'cache')
-                    return ctx.body = Buffer.from(cached)
+                    return ctx.body = Buffer.from(cached.base64, 'base64')
                 }
                 // generate new thumbnail
                 const content = await buffer(ctx.body)
                 const w = Number(ctx.query.w) || THUMB_SIZE
                 const h = Number(ctx.query.h)
-                const quality = 30
+                const quality = 20
                 ctx.set(header, 'generated')
                 const res = api.customApiCall('sharp', content)[0]
                 if (!res)
@@ -101,7 +96,7 @@ exports.init = async api => {
                     console.debug('thumbnails plugin:', e.message || e)
                     return error(501, e.message || String(e))
                 }
-                dbCache.put(cacheKey, ctx.body).catch(failSilently) // don't wait
+                storeFileAttr(fileSource, K, { ts, base64: ctx.body.toString('base64') }).catch(failSilently) // don't wait
             }
 
             function error(code, body) {
@@ -109,12 +104,11 @@ exports.init = async api => {
                 ctx.type = 'text'
                 ctx.body = body
             }
-
         }
     }
 
     function failSilently(e) {
-        console.debug(`thumbnails db: ${e.message || e}`)
+        console.debug(`thumbnails: ${e.message || e}`)
     }
 
     function readThumb(buffer) {
