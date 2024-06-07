@@ -1,4 +1,4 @@
-exports.version = 4
+exports.version = 4.01
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -60,8 +60,9 @@ exports.init = async api => {
                     ctx.set(header, 'custom')
                     return ctx.body = custom
                 }
-                // try embedded
                 const {fileSource} = ctx.state
+                if (!fileSource) return // file not accessible, for some reason, like permissions
+                // try reading embedded thumbnail
                 const head = await buffer(createReadStream(fileSource, { start: 0 , end: 96 * 1024 }))
                 const thumb = readThumb(head)
                 if (thumb) {
@@ -93,7 +94,7 @@ exports.init = async api => {
                     ctx.body = Buffer.from(await res.resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
                 }
                 catch(e) {
-                    console.debug('thumbnails plugin:', e.message || e)
+                    console.debug('thumbnails plugin:', e.message || e, fileSource)
                     return error(501, e.message || String(e))
                 }
                 storeFileAttr(fileSource, K, { ts, base64: ctx.body.toString('base64') }).catch(failSilently) // don't wait
