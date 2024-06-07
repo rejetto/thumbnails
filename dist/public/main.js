@@ -8,7 +8,7 @@
                 className: 'icon thumbnail',
                 fallback: () => entry.getDefaultIcon(),
             })
-            || config.videos && ['mp4','webm','mov','avi'].includes(entry.ext) && h(ImgFallback, {
+            || config.videos && ['mp4', 'webm', 'mov', 'avi'].includes(entry.ext) && h(ImgFallback, {
                 tag: 'video',
                 src: entry.uri,
                 className: 'icon thumbnail',
@@ -26,7 +26,7 @@
     }
 
     HFS.onEvent('fileMenu', ({ entry }) =>
-        config.showTilesInMenu && !HFS.state.tiles && isSupported(entry) && [{
+        config.showTilesInMenu && !HFS.state.tile_size && isSupported(entry) && [{
             icon: '⊞',
             label: t("Enable tiles mode"),
             onClick() {
