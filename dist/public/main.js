@@ -4,25 +4,28 @@
 
     HFS.onEvent('entryIcon', ({ entry }) =>
             isSupported(entry) && h(ImgFallback, {
-                src: entry.uri + '?get=thumb',
-                className: 'icon thumbnail',
                 fallback: () => entry.getDefaultIcon(),
+                props: {
+                    src: entry.uri + '?get=thumb',
+                    className: 'icon thumbnail',
+                }
             })
             || config.videos && ['mp4', 'webm', 'mov', 'avi'].includes(entry.ext) && h(ImgFallback, {
-                tag: 'video',
-                src: entry.uri,
-                className: 'icon thumbnail',
-                disableRemotePlayback: true,
                 fallback: () => entry.getDefaultIcon(),
+                tag: 'video',
+                props: {
+                    src: entry.uri,
+                    className: 'icon thumbnail',
+                    disableRemotePlayback: true,
+                }
             })
     )
 
-    function ImgFallback({ fallback, tag='img', ...rest }) {
+    function ImgFallback({ fallback, tag='img', props }) {
         const [err,setErr] = HFS.React.useState()
-        return err ? fallback && h(fallback) : h(tag, {
-            ...rest,
+        return err ? fallback && h(fallback) : h(tag, Object.assign(props, {
             onError() { setErr(true) }
-        })
+        }))
     }
 
     HFS.onEvent('fileMenu', ({ entry }) =>

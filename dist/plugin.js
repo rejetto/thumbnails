@@ -1,4 +1,4 @@
-exports.version = 4.02
+exports.version = 4.03
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -69,7 +69,7 @@ exports.init = async api => {
                     ctx.set(header, 'embedded')
                     return ctx.body = thumb
                 }
-                ctx.set(header, 'NOPE')
+                ctx.set(header, 'full')
                 // consider full file
                 const {size, mtimeMs: ts} = ctx.state.fileStats
                 if (size < api.getConfig('fullThreshold') * 1024)
