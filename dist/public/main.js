@@ -8,6 +8,13 @@
                 props: {
                     src: entry.uri + '?get=thumb',
                     className: 'icon thumbnail',
+                    onMouseLeave() {
+                        document.getElementById('thumbnailsPreview').innerHTML = ''
+                    },
+                    onMouseEnter() {
+                        if (!HFS.state.tile_size)
+                            document.getElementById('thumbnailsPreview').innerHTML = "<img src='" + entry.uri + "?get=thumb'/>"
+                    },
                 }
             })
             || config.videos && ['mp4', 'webm', 'mov', 'avi'].includes(entry.ext) && h(ImgFallback, {
@@ -20,6 +27,11 @@
                 }
             })
     )
+
+    HFS.onEvent('afterList', () => "<div id='thumbnailsPreview'></div>" +
+        "<style> #thumbnailsPreview { position: fixed; bottom: 0; right: 0; }" +
+        "#thumbnailsPreview img { max-height: 256px; max-width: 256px; }" +
+        "</style>")
 
     function ImgFallback({ fallback, tag='img', props }) {
         const [err,setErr] = HFS.React.useState()
