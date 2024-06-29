@@ -1,4 +1,4 @@
-exports.version = 4.2
+exports.version = 4.21
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -39,6 +39,7 @@ const THUMB_SIZE = 256
 
 exports.init = async api => {
     const { createReadStream, rm } = api.require('fs')
+    const { utimes } = api.require('fs/promises')
     const { buffer } = api.require('node:stream/consumers')
     const { loadFileAttr, storeFileAttr } = api.require('./misc')
 
@@ -59,7 +60,7 @@ exports.init = async api => {
                 const {size, mtimeMs: ts} = ctx.state.fileStats
                 // try cache
                 const cached = await loadFileAttr(fileSource, K).catch(failSilently)
-                if (cached?.ts >= ts) {
+                if (cached?.ts === ts) {
                     ctx.set(header, 'cache')
                     if (cached.type)
                         ctx.type = cached.type
@@ -77,7 +78,7 @@ exports.init = async api => {
                 }
                 else {
                     // try reading embedded thumbnail
-                    const head = await buffer(createReadStream(fileSource, { start: 0 , end: 96 * 1024 }))
+                    const head = await buffer(createReadStream(fileSource, { start: 0, end: 96 * 1024 }))
                     const thumb = readThumb(head)
                     if (thumb) {
                         ctx.set(header, 'embedded')
@@ -104,11 +105,9 @@ exports.init = async api => {
                         return error(501, e.message || String(e))
                     }
                 }
-                storeFileAttr(fileSource, K, { // don't wait
-                    ts: Date.now() + 2000, // best thing here would be to store the source file timestamp, and that works on posix system. On Windows instead, such timestamp is updated after this operation, making it useless. To workaround the problem, we store current time with some extra to account for the time it takes to complete the writing. This implies that we don't detect if the file is replaced with an older copy, but it's a minor problem.
-                    mime: ctx.type,
-                    base64: ctx.body.toString('base64')
-                }).catch(failSilently)
+                // don't wait
+                storeFileAttr(fileSource, K, { ts, mime: ctx.type, base64: ctx.body.toString('base64') })
+                    .then(() => utimes(fileSource, new Date(ts), new Date(ts)), failSilently)
             }
 
             function error(code, body) {
