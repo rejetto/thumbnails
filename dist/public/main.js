@@ -17,7 +17,7 @@
                     },
                 }
             })
-            || config.videos && ['mp4', 'webm', 'mov', 'avi'].includes(entry.ext) && h(ImgFallback, {
+            || config.videos && ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(entry.ext) && h(ImgFallback, {
                 fallback: () => entry.getDefaultIcon(),
                 tag: 'video',
                 props: {

@@ -1,9 +1,10 @@
-exports.version = 4.21
+exports.version = 4.3
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
 exports.depend = [{ "repo": "rejetto/sharp", "version": 1 }]
+exports.preview = ["https://github.com/rejetto/thumbnails/assets/1367199/d74a8a24-a6f8-4460-93de-74d9d6bd413f"]
 exports.config = {
     fullThreshold: {
         type: 'number',
