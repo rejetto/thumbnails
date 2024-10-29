@@ -24,13 +24,20 @@
                     src: entry.uri,
                     className: 'icon thumbnail',
                     disableRemotePlayback: true,
+                    onMouseLeave() {
+                        document.getElementById('thumbnailsPreview').innerHTML = ''
+                    },
+                    onMouseEnter() {
+                        if (!HFS.state.tile_size)
+                            document.getElementById('thumbnailsPreview').innerHTML = "<video src='" + entry.uri + "'/>"
+                    },
                 }
             })
     )
 
     HFS.onEvent('afterList', () => "<div id='thumbnailsPreview'></div>" +
         "<style> #thumbnailsPreview { position: fixed; bottom: 0; right: 0; }" +
-        "#thumbnailsPreview img { max-height: 256px; max-width: 256px; }" +
+        "#thumbnailsPreview>* { max-height: 256px; max-width: 256px; }" +
         "</style>")
 
     function ImgFallback({ fallback, tag='img', props }) {
