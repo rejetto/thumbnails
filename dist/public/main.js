@@ -8,6 +8,7 @@
                 props: {
                     src: entry.uri + '?get=thumb',
                     className: 'icon thumbnail',
+                    loading: config.lazyLoading ? 'lazy' : undefined, // eager is default
                     onMouseLeave() {
                         document.getElementById('thumbnailsPreview').innerHTML = ''
                     },

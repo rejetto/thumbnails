@@ -1,4 +1,4 @@
-exports.version = 4.4
+exports.version = 4.5
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -19,11 +19,8 @@ exports.config = {
         defaultValue: false,
         label: "Include thumbnails in log",
     },
-    showTilesInMenu: {
-        frontend: true,
-        type: 'boolean',
-        defaultValue: true,
-    },
+    showTilesInMenu: { frontend: true, type: 'boolean', defaultValue: true },
+    lazyLoading: { frontend: true, type: 'boolean', defaultValue: true, helperText: "Less traffic but slower displaying" },
     videos: {
         frontend: true,
         type: 'boolean',
@@ -90,6 +87,7 @@ exports.init = async api => {
                     if (size < api.getConfig('fullThreshold') * 1024)
                         return // leave it to existing ctx.body
                     // generate new thumbnail
+                    ctx.body.end = 1E8 // 100MB hard limit for file stream
                     const content = await buffer(ctx.body)
                     const w = Number(ctx.query.w) || THUMB_SIZE
                     const h = Number(ctx.query.h)
