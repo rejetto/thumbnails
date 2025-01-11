@@ -12,7 +12,8 @@
                     onMouseLeave() {
                         document.getElementById('thumbnailsPreview').innerHTML = ''
                     },
-                    onMouseEnter() {
+                    onMouseEnter(ev) {
+                        if (!ev.target.closest('.dir')) return // only from within the file list, not (for example) when used as icon for the file-menu
                         if (!HFS.state.tile_size)
                             document.getElementById('thumbnailsPreview').innerHTML = "<img src='" + entry.uri + "?get=thumb'/>"
                     },
