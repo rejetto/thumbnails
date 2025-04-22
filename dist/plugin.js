@@ -1,4 +1,4 @@
-exports.version = 4.52
+exports.version = 4.6
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -11,8 +11,16 @@ exports.config = {
         unit: 'KB',
         defaultValue: 100,
         min: 0,
-        label: "Serve full file if size is less than",
-        sm: 6,
+        label: "Original file under",
+        helperText: "Serve original file if small, instead of thumbnail",
+        xs: 6,
+    },
+    quality: {
+        type: 'number',
+        defaultValue: 20,
+        min: 1, max: 100,
+        helperText: "100 is best quality but bigger size",
+        xs: 6
     },
     log: {
         type: 'boolean',
@@ -28,6 +36,9 @@ exports.config = {
         label: "Enable experimental videos support",
     },
 }
+exports.changelog = [
+    { "version": 4.6, "message": "Added \"quality\" configuration" }
+]
 
 exports.configDialog = {
     maxWidth: 'xs',
@@ -91,7 +102,7 @@ exports.init = async api => {
                     const content = await buffer(ctx.body)
                     const w = Number(ctx.query.w) || THUMB_SIZE
                     const h = Number(ctx.query.h)
-                    const quality = 20
+                    const quality = api.getConfig('quality')
                     ctx.set(header, 'generated')
                     const res = api.customApiCall('sharp', content)[0]
                     if (!res)
@@ -106,7 +117,7 @@ exports.init = async api => {
                 }
                 // don't wait
                 storeFileAttr(fileSource, K, { ts, mime: ctx.type, base64: ctx.body.toString('base64') })
-                    .then(() => utimes(fileSource, new Date(ts), new Date(ts)), failSilently)
+                    .then(() => utimes(fileSource, new Date(ts), new Date(ts)), failSilently) // restore timestamp
             }
 
             function error(code, body) {
