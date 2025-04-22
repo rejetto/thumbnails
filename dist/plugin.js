@@ -1,4 +1,4 @@
-exports.version = 4.6
+exports.version = 4.7
 exports.description = "Show thumbnails for images in place of icons"
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -6,21 +6,29 @@ exports.repo = "rejetto/thumbnails"
 exports.depend = [{ "repo": "rejetto/sharp", "version": 1 }]
 exports.preview = ["https://github.com/rejetto/thumbnails/assets/1367199/d74a8a24-a6f8-4460-93de-74d9d6bd413f"]
 exports.config = {
-    fullThreshold: {
-        type: 'number',
-        unit: 'KB',
-        defaultValue: 100,
-        min: 0,
-        label: "Original file under",
-        helperText: "Serve original file if small, instead of thumbnail",
-        xs: 6,
-    },
     quality: {
         type: 'number',
         defaultValue: 20,
         min: 1, max: 100,
         helperText: "100 is best quality but bigger size",
-        xs: 6
+        xs: 6,
+    },
+    pixels: {
+        type: 'number',
+        defaultValue: 256,
+        min: 10, max: 2000,
+        helperText: "Dimensions of longest side",
+        unit: 'pixels',
+        xs: 6,
+    },
+    fullThreshold: {
+        type: 'number',
+        unit: 'KB',
+        defaultValue: 100,
+        min: 0,
+        label: "Serve original file under",
+        helperText: "Don't generate a thumbnail",
+        xs: 6,
     },
     log: {
         type: 'boolean',
@@ -37,14 +45,13 @@ exports.config = {
     },
 }
 exports.changelog = [
+    { "version": 4.7, "message": "Added \"pixels\" configuration" },
     { "version": 4.6, "message": "Added \"quality\" configuration" }
 ]
 
 exports.configDialog = {
     maxWidth: 'xs',
 }
-
-const THUMB_SIZE = 256
 
 exports.init = async api => {
     const { createReadStream, rm } = api.require('fs')
@@ -100,7 +107,7 @@ exports.init = async api => {
                     // generate new thumbnail
                     ctx.body.end = 1E8 // 100MB hard limit for file stream
                     const content = await buffer(ctx.body)
-                    const w = Number(ctx.query.w) || THUMB_SIZE
+                    const w = Number(ctx.query.w) || api.getConfig('pixels')
                     const h = Number(ctx.query.h)
                     const quality = api.getConfig('quality')
                     ctx.set(header, 'generated')
