@@ -1,5 +1,5 @@
-exports.version = 4.7
-exports.description = "Show thumbnails for images in place of icons"
+exports.version = 4.8
+exports.description = "Show thumbnails for images in place of icons. It uses EXIF if available."
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
@@ -30,13 +30,11 @@ exports.config = {
         helperText: "Don't generate a thumbnail",
         xs: 6,
     },
-    log: {
-        type: 'boolean',
-        defaultValue: false,
-        label: "Include thumbnails in log",
-    },
-    showTilesInMenu: { frontend: true, type: 'boolean', defaultValue: true },
-    lazyLoading: { frontend: true, type: 'boolean', defaultValue: true, helperText: "Less traffic but slower displaying" },
+    regenerateBefore: { type: 'date_time', helperText: "Older are regenerated", xs: 6 },
+    log: { type: 'boolean', defaultValue: false, label: "Include thumbnails in log" },
+    showTilesInMenu: { frontend: true, type: 'boolean', defaultValue: true, label: "Show tiles in file menu" },
+    lazyLoading: { frontend: true,type: 'boolean', defaultValue: true, xs: 7, helperText: "Less traffic but slower displaying" },
+    exif: { type: 'boolean', defaultValue: true, label: "EXIF", xs: 5 },
     videos: {
         frontend: true,
         type: 'boolean',
@@ -45,8 +43,9 @@ exports.config = {
     },
 }
 exports.changelog = [
-    { "version": 4.7, "message": "Added \"pixels\" configuration" },
-    { "version": 4.6, "message": "Added \"quality\" configuration" }
+    { "version": 4.8, "message": "Added `regenerate before` and `exif` configuration" },
+    { "version": 4.7, "message": "Added `pixels` configuration" },
+    { "version": 4.6, "message": "Added `quality` configuration" }
 ]
 
 exports.configDialog = {
@@ -76,7 +75,8 @@ exports.init = async api => {
                 const {size, mtimeMs: ts} = ctx.state.fileStats
                 // try cache
                 const cached = await loadFileAttr(fileSource, K).catch(failSilently)
-                if (cached?.ts === ts) {
+                const regenerateBefore = api.getConfig('regenerateBefore')
+                if (cached?.ts === ts && (!regenerateBefore || cached.thumbTs >= regenerateBefore)) {
                     ctx.set(header, 'cache')
                     if (cached.type)
                         ctx.type = cached.type
@@ -93,9 +93,9 @@ exports.init = async api => {
                     if (res.cache === false) return
                 }
                 else {
-                    // try reading embedded thumbnail
-                    const head = await buffer(createReadStream(fileSource, { start: 0, end: 96 * 1024 }))
-                    const thumb = readThumb(head)
+                    // try reading exif thumbnail
+                    const head = api.getConfig('exif') && await buffer(createReadStream(fileSource, { start: 0, end: 96 * 1024 }))
+                    const thumb = head && readThumb(head)
                     if (thumb) {
                         ctx.set(header, 'embedded')
                         return ctx.body = thumb
@@ -123,7 +123,7 @@ exports.init = async api => {
                     }
                 }
                 // don't wait
-                storeFileAttr(fileSource, K, { ts, mime: ctx.type, base64: ctx.body.toString('base64') })
+                storeFileAttr(fileSource, K, { ts, thumbTs: new Date(), mime: ctx.type, base64: ctx.body.toString('base64') })
                     .then(() => utimes(fileSource, new Date(ts), new Date(ts)), failSilently) // restore timestamp
             }
 
