@@ -3,38 +3,38 @@
     const config = HFS.getPluginConfig()
 
     HFS.onEvent('entryIcon', ({ entry }) =>
-            isSupported(entry) && h(ImgFallback, {
-                fallback: () => entry.getDefaultIcon(),
-                props: {
-                    src: entry.uri + '?get=thumb',
-                    className: 'icon thumbnail',
-                    loading: config.lazyLoading ? 'lazy' : undefined, // eager is default
-                    onMouseLeave() {
-                        document.getElementById('thumbnailsPreview').innerHTML = ''
-                    },
-                    onMouseEnter(ev) {
-                        if (!ev.target.closest('.dir')) return // only from within the file list, not (for example) when used as icon for the file-menu
-                        if (!HFS.state.tile_size)
-                            document.getElementById('thumbnailsPreview').innerHTML = "<img src='" + entry.uri + "?get=thumb'/>"
-                    },
-                }
-            })
-            || config.videos && ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(entry.ext) && h(ImgFallback, {
-                fallback: () => entry.getDefaultIcon(),
-                tag: 'video',
-                props: {
-                    src: entry.uri,
-                    className: 'icon thumbnail',
-                    disableRemotePlayback: true,
-                    onMouseLeave() {
-                        document.getElementById('thumbnailsPreview').innerHTML = ''
-                    },
-                    onMouseEnter() {
-                        if (!HFS.state.tile_size)
-                            document.getElementById('thumbnailsPreview').innerHTML = "<video src='" + entry.uri + "'/>"
-                    },
-                }
-            })
+        isSupported(entry) && h(ImgFallback, {
+            fallback: () => entry.getDefaultIcon(),
+            props: {
+                src: entry.uri + '?get=thumb',
+                className: 'icon thumbnail',
+                loading: config.lazyLoading ? 'lazy' : undefined, // eager is default
+                onMouseLeave() {
+                    document.getElementById('thumbnailsPreview').innerHTML = ''
+                },
+                onMouseEnter(ev) {
+                    if (!ev.target.closest('.dir')) return // only from within the file list, not (for example) when used as icon for the file-menu
+                    if (!HFS.state.tile_size)
+                        document.getElementById('thumbnailsPreview').innerHTML = "<img src='" + entry.uri + "?get=thumb'/>"
+                },
+            }
+        })
+        || config.videos && ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(entry.ext) && h(ImgFallback, {
+            fallback: () => entry.getDefaultIcon(),
+            tag: 'video',
+            props: {
+                src: entry.uri,
+                className: 'icon thumbnail',
+                disableRemotePlayback: true,
+                onMouseLeave() {
+                    document.getElementById('thumbnailsPreview').innerHTML = ''
+                },
+                onMouseEnter() {
+                    if (!HFS.state.tile_size)
+                        document.getElementById('thumbnailsPreview').innerHTML = "<video src='" + entry.uri + "'/>"
+                },
+            }
+        })
     )
 
     HFS.onEvent('afterList', () => "<div id='thumbnailsPreview'></div>" +

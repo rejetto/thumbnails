@@ -1,4 +1,4 @@
-exports.version = 4.8
+exports.version = 4.81
 exports.description = "Show thumbnails for images in place of icons. It uses EXIF if available."
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -43,6 +43,7 @@ exports.config = {
     },
 }
 exports.changelog = [
+    { "version": 4.81, "message": "Fix: wrong timestamp on files" },
     { "version": 4.8, "message": "Added `regenerate before` and `exif` configuration" },
     { "version": 4.7, "message": "Added `pixels` configuration" },
     { "version": 4.6, "message": "Added `quality` configuration" }
@@ -54,7 +55,6 @@ exports.configDialog = {
 
 exports.init = async api => {
     const { createReadStream, rm } = api.require('fs')
-    const { utimes } = api.require('fs/promises')
     const { buffer } = api.require('node:stream/consumers')
     const { loadFileAttr, storeFileAttr } = api.require('./misc')
 
@@ -124,7 +124,7 @@ exports.init = async api => {
                 }
                 // don't wait
                 storeFileAttr(fileSource, K, { ts, thumbTs: new Date(), mime: ctx.type, base64: ctx.body.toString('base64') })
-                    .then(() => utimes(fileSource, new Date(ts), new Date(ts)), failSilently) // restore timestamp
+                    .catch(failSilently)
             }
 
             function error(code, body) {
