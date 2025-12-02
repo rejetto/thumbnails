@@ -26,20 +26,32 @@
                 src: entry.uri,
                 className: 'icon thumbnail',
                 disableRemotePlayback: true,
+                onLoadedMetadata,
                 onMouseLeave() {
                     document.getElementById('thumbnailsPreview').innerHTML = ''
                 },
-                onMouseEnter() {
-                    if (!HFS.state.tile_size)
-                        document.getElementById('thumbnailsPreview').innerHTML = "<video src='" + entry.uri + "'/>"
+                onMouseEnter(ev) {
+                    if (HFS.state.tile_size) return
+                    const el = ev.target.cloneNode(true)
+                    el.addEventListener('loadedmetadata', onLoadedMetadata)
+                    document.getElementById('thumbnailsPreview').replaceChildren(el)
                 },
             }
         })
     )
 
+    function onLoadedMetadata({ target: e }) {
+        e.currentTime = 0
+        e.addEventListener('seeked', async function handler() {
+            if (e.currentTime < e.duration * 0.5 && await checkIfBlackFrame(e))
+                return e.currentTime += e.duration * 0.05
+            e.removeEventListener('seeked', handler)
+        })
+    }
+
     HFS.onEvent('afterList', () => "<div id='thumbnailsPreview'></div>" +
         "<style> #thumbnailsPreview { position: fixed; bottom: 0; right: 0; }" +
-        "#thumbnailsPreview>* { max-height: 256px; max-width: 256px; }" +
+        "#thumbnailsPreview>* { width: 256px; height: auto; }" +
         "</style>")
 
     function ImgFallback({ fallback, tag='img', props }) {
@@ -64,5 +76,31 @@
         return entry._th // calculated server-side
             || ['jpg','jpeg','png','webp','tiff','tif','gif','avif','svg'].includes(entry.ext)
             || HFS.emit('thumbnails_supported', { entry }).some(Boolean)
+    }
+
+    function checkIfBlackFrame(video, {
+        width = 160,
+        height = 90,
+        threshold = 30,
+        blackRatio = 0.9
+    } = {}) {
+        return new Promise(resolve => {
+            const canvas = document.createElement('canvas')
+            canvas.width = width
+            canvas.height = height
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+            const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+            let darkPixels = 0
+            const totalPixels = canvas.width * canvas.height
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i]
+                const g = data[i + 1]
+                const b = data[i + 2]
+                if (r < threshold && g < threshold && b < threshold)
+                    darkPixels++
+            }
+            resolve(darkPixels / totalPixels > blackRatio)
+        });
     }
 }

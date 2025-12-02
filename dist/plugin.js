@@ -1,4 +1,4 @@
-exports.version = 4.81
+exports.version = 4.83
 exports.description = "Show thumbnails for images in place of icons. It uses EXIF if available."
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -43,6 +43,7 @@ exports.config = {
     },
 }
 exports.changelog = [
+    { "version": 4.83, "message": "Fewer black frames for videos" },
     { "version": 4.81, "message": "Fix: wrong timestamp on files" },
     { "version": 4.8, "message": "Added `regenerate before` and `exif` configuration" },
     { "version": 4.7, "message": "Added `pixels` configuration" },
