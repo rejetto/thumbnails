@@ -1,4 +1,4 @@
-exports.version = 4.83
+exports.version = 4.84
 exports.description = "Show thumbnails for images in place of icons. It uses EXIF if available."
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -43,6 +43,7 @@ exports.config = {
     },
 }
 exports.changelog = [
+    { "version": 4.84, "message": "Fixed cached JPEG type and embedded EXIF thumbnails" },
     { "version": 4.83, "message": "Fewer black frames for videos" },
     { "version": 4.81, "message": "Fix: wrong timestamp on files" },
     { "version": 4.8, "message": "Added `regenerate before` and `exif` configuration" },
@@ -53,6 +54,9 @@ exports.changelog = [
 exports.configDialog = {
     maxWidth: 'xs',
 }
+
+const JPEG_START = Buffer.from([0xFF, 0xD8, 0xFF])
+const JPEG_END = Buffer.from([0xFF, 0xD9])
 
 exports.init = async api => {
     const { createReadStream, rm } = api.require('fs')
@@ -72,15 +76,20 @@ exports.init = async api => {
                     ctx.state.dontLog = true
                 const {fileSource} = ctx.state
                 if (!fileSource) return // file not accessible, for some reason, like permissions
+                const pixels = api.getConfig('pixels')
+                const w = dimension(ctx.query.w, pixels)
+                const h = dimension(ctx.query.h, w)
+                const customSize = 'w' in ctx.query || 'h' in ctx.query
                 const K = 'thumbnail'
                 const {size, mtimeMs: ts} = ctx.state.fileStats
                 // try cache
                 const cached = await loadFileAttr(fileSource, K).catch(failSilently)
                 const regenerateBefore = api.getConfig('regenerateBefore')
-                if (cached?.ts === ts && (!regenerateBefore || cached.thumbTs >= regenerateBefore)) {
+                if (cached?.ts === ts && (!regenerateBefore || cached.thumbTs >= regenerateBefore)
+                    && (!customSize || cached.w === w && cached.h === h)) {
                     ctx.set(header, 'cache')
-                    if (cached.type)
-                        ctx.type = cached.type
+                    if (cached.mime)
+                        ctx.type = cached.mime
                     return ctx.body = Buffer.from(cached.base64, 'base64')
                 }
                 // call for other plugins
@@ -99,6 +108,7 @@ exports.init = async api => {
                     const thumb = head && readThumb(head)
                     if (thumb) {
                         ctx.set(header, 'embedded')
+                        ctx.type = 'image/jpeg'
                         return ctx.body = thumb
                     }
                     ctx.set(header, 'full')
@@ -108,24 +118,23 @@ exports.init = async api => {
                     // generate new thumbnail
                     ctx.body.end = 1E8 // 100MB hard limit for file stream
                     const content = await buffer(ctx.body)
-                    const w = Number(ctx.query.w) || api.getConfig('pixels')
-                    const h = Number(ctx.query.h)
                     const quality = api.getConfig('quality')
                     ctx.set(header, 'generated')
                     const res = api.customApiCall('sharp', content)[0]
                     if (!res)
                         return error(500, 'missing "sharp" plugin')
                     try {
-                        ctx.body = Buffer.from(await res.resize(w, h||w, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
+                        ctx.body = Buffer.from(await res.resize(w, h, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
+                        ctx.type = 'image/jpeg'
                     }
                     catch(e) {
                         console.debug('thumbnails plugin:', e.message || e, fileSource)
                         return error(501, e.message || String(e))
                     }
                 }
-                // don't wait
-                storeFileAttr(fileSource, K, { ts, thumbTs: new Date(), mime: ctx.type, base64: ctx.body.toString('base64') })
-                    .catch(failSilently)
+                if (!customSize) // don't replace the default thumbnail with a one-off requested size
+                    storeFileAttr(fileSource, K, { ts, thumbTs: new Date(), mime: ctx.type, w, h, base64: ctx.body.toString('base64') })
+                        .catch(failSilently)
             }
 
             function error(code, body) {
@@ -140,12 +149,17 @@ exports.init = async api => {
         console.debug(`thumbnails: ${e.message || e}`)
     }
 
+    function dimension(value, fallback) {
+        const n = Number(value)
+        return Number.isFinite(n) && n > 0 ? Math.min(Math.round(n), 2000) : fallback
+    }
+
     function readThumb(buffer) {
-        const start = buffer.indexOf('\xFF\xD8\xFF', 2)
+        const start = buffer.indexOf(JPEG_START, 2)
         if (start < 0) return
-        const end = buffer.indexOf('\xFF\xD9', start)
+        const end = buffer.indexOf(JPEG_END, start)
         if (end < 0) return
-        return buffer.slice(start, end)
+        return buffer.slice(start, end + 2)
     }
 
 }
