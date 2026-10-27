@@ -1,0 +1,12 @@
+{
+  "name": "hfs-thumbnails",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "jimp": "1.6.1"
+  }
+}

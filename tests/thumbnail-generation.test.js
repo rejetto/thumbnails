@@ -3,6 +3,7 @@ const { Readable } = require('node:stream')
 const test = require('node:test')
 
 test('limits requested dimensions without replacing the default cache', async () => {
+    assert.equal(require.cache[require.resolve('../dist/jimp.min')], undefined)
     const resized = []
     const loadedKeys = []
     const stored = []
@@ -24,6 +25,7 @@ test('limits requested dimensions without replacing the default cache', async ()
 
     await middleware(ctx)()
 
+    assert.equal(require.cache[require.resolve('../dist/jimp.min')], undefined)
     assert.deepEqual(resized, [[2000, 2000]])
     assert.deepEqual(loadedKeys, ['thumbnail'])
     assert.equal(ctx.type, 'image/jpeg')
@@ -81,10 +83,68 @@ test('extracts an embedded JPEG using binary markers', async () => {
     assert.equal(ctx.type, 'image/jpeg')
 })
 
-function makeApi({ loadFileAttr, storeFileAttr, sharp, exif = false, head }) {
+for (const mime of ['image/jpeg', 'image/png', 'image/gif', 'image/tiff']) {
+    test(`generates and caches a JPEG from ${mime} without Sharp`, async () => {
+        const Jimp = require('../dist/jimp.min')
+        const source = await new Jimp({ width: 80, height: 40, color: 0xff0000ff }).getBuffer(mime)
+        let cached
+        const api = makeApi({
+            loadFileAttr: async () => cached,
+            storeFileAttr: async (_, key, value) => { cached = value },
+            pixels: 32,
+        })
+        const middleware = (await require('../dist/plugin.js').init(api)).middleware
+        const ctx = makeCtx({})
+        ctx.body = Readable.from(source)
+        await middleware(ctx)()
+
+        const image = await Jimp.read(ctx.body)
+        assert.equal(ctx.type, 'image/jpeg')
+        assert.deepEqual([image.bitmap.width, image.bitmap.height], [32, 16])
+        assert.ok(image.bitmap.data[0] > 200)
+        assert.ok(image.bitmap.data[1] < 30)
+        assert.equal(cached.mime, 'image/jpeg')
+        const second = makeCtx({})
+        await middleware(second)()
+        assert.deepEqual(second.body, ctx.body)
+    })
+}
+
+test('applies EXIF orientation before fitting the requested dimensions', async () => {
+    const Jimp = require('../dist/jimp.min')
+    const jpeg = await new Jimp({ width: 80, height: 40, color: 0xff0000ff }).getBuffer('image/jpeg')
+    // EXIF orientation 6 rotates the stored landscape image into portrait
+    const exif = Buffer.from('ffe1002245786966000049492a0008000000010012010300010000000600000000000000', 'hex')
+    const source = Buffer.concat([jpeg.subarray(0, 2), exif, jpeg.subarray(2)])
+    const api = makeApi({ loadFileAttr: async () => {}, storeFileAttr: async () => {} })
+    const middleware = (await require('../dist/plugin.js').init(api)).middleware
+    const ctx = makeCtx({ w: 30, h: 50 })
+    ctx.body = Readable.from(source)
+    await middleware(ctx)()
+
+    const image = await Jimp.read(ctx.body)
+    assert.deepEqual([image.bitmap.width, image.bitmap.height], [25, 50])
+})
+
+test('reports an invalid image without caching it', async () => {
+    let stored = false
+    const api = makeApi({
+        loadFileAttr: async () => {},
+        storeFileAttr: async () => { stored = true },
+    })
+    const middleware = (await require('../dist/plugin.js').init(api)).middleware
+    const ctx = makeCtx({})
+    await middleware(ctx)()
+
+    assert.equal(ctx.status, 501)
+    assert.equal(ctx.type, 'text')
+    assert.equal(stored, false)
+})
+
+function makeApi({ loadFileAttr, storeFileAttr, sharp, exif = false, head, pixels = 256 }) {
     return {
         storageDir: '/tmp/',
-        getConfig: key => ({ log: false, pixels: 256, regenerateBefore: null, exif, fullThreshold: 0, quality: 20 })[key],
+        getConfig: key => ({ log: false, pixels, regenerateBefore: null, exif, fullThreshold: 0, quality: 20 })[key],
         require(name) {
             if (name === 'fs') return { createReadStream: () => Readable.from(head), rm(_, __, cb) { cb() } }
             if (name === 'node:stream/consumers') return require(name)

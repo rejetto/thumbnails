@@ -1,9 +1,9 @@
-exports.version = 4.84
+exports.version = 4.9
 exports.description = "Show thumbnails for images in place of icons. It uses EXIF if available."
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
 exports.repo = "rejetto/thumbnails"
-exports.depend = [{ "repo": "rejetto/sharp", "version": 1 }]
+exports.depend = [{ "repo": "rejetto/sharp", "version": 1.4 }]
 exports.preview = ["https://github.com/rejetto/thumbnails/assets/1367199/d74a8a24-a6f8-4460-93de-74d9d6bd413f"]
 exports.config = {
     quality: {
@@ -43,6 +43,7 @@ exports.config = {
     },
 }
 exports.changelog = [
+    { "version": 4.9, "message": "Work on platforms that are not supported by Sharp" },
     { "version": 4.84, "message": "Fixed cached JPEG type and embedded EXIF thumbnails" },
     { "version": 4.83, "message": "Fewer black frames for videos" },
     { "version": 4.81, "message": "Fix: wrong timestamp on files" },
@@ -65,6 +66,7 @@ exports.init = async api => {
 
     rm(api.storageDir + 'cache',  { recursive: true, force: true }, () => {}) // remove legacy db
     const header = 'x-thumbnail'
+    let warnedJimp = false
     return {
         middleware(ctx) {
             if (ctx.query.get !== 'thumb') return
@@ -120,11 +122,19 @@ exports.init = async api => {
                     const content = await buffer(ctx.body)
                     const quality = api.getConfig('quality')
                     ctx.set(header, 'generated')
-                    const res = api.customApiCall('sharp', content)[0]
-                    if (!res)
-                        return error(500, 'missing "sharp" plugin')
                     try {
-                        ctx.body = Buffer.from(await res.resize(w, h, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
+                        const sharp = api.customApiCall('sharp', content).find(Boolean)
+                        if (sharp)
+                            ctx.body = Buffer.from(await sharp.resize(w, h, { fit: 'inside' }).rotate().jpeg({ quality }).toBuffer())
+                        else {
+                            const Jimp = require('./jimp.min')
+                            if (!warnedJimp) {
+                                warnedJimp = true
+                                api.log("Using Jimp")
+                            }
+                            const image = await Jimp.read(content)
+                            ctx.body = await image.scaleToFit({ w, h }).getBuffer('image/jpeg', { quality })
+                        }
                         ctx.type = 'image/jpeg'
                     }
                     catch(e) {
