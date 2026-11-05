@@ -83,6 +83,39 @@ test('extracts an embedded JPEG using binary markers', async () => {
     assert.equal(ctx.type, 'image/jpeg')
 })
 
+test('uses an embedded thumbnail above the size limit even when EXIF is disabled', async () => {
+    const embedded = Buffer.from([0xFF, 0xD8, 0xFF, 1, 2, 0xFF, 0xD9])
+    const api = makeApi({
+        loadFileAttr: async () => {},
+        storeFileAttr: async () => {},
+        head: Buffer.concat([Buffer.from([1, 2]), embedded]),
+    })
+    const middleware = (await require('../dist/plugin.js').init(api)).middleware
+    const ctx = makeCtx({})
+    ctx.state.fileStats.size = 101 * 1024 * 1024
+
+    await middleware(ctx)()
+
+    assert.deepEqual(ctx.body, embedded)
+})
+
+test('rejects generation above the size limit without reading the original', async () => {
+    const api = makeApi({
+        loadFileAttr: async () => {},
+        storeFileAttr: async () => {},
+        head: Buffer.from('no embedded thumbnail'),
+    })
+    const middleware = (await require('../dist/plugin.js').init(api)).middleware
+    const ctx = makeCtx({})
+    ctx.state.fileStats.size = 101 * 1024 * 1024
+    ctx.body = new Readable({ read() { assert.fail('read original') } })
+
+    await middleware(ctx)()
+
+    assert.equal(ctx.status, 413)
+    assert.equal(ctx.type, 'text')
+})
+
 for (const mime of ['image/jpeg', 'image/png', 'image/gif', 'image/tiff']) {
     test(`generates and caches a JPEG from ${mime} without Sharp`, async () => {
         const Jimp = require('../dist/jimp.min')
@@ -141,10 +174,13 @@ test('reports an invalid image without caching it', async () => {
     assert.equal(stored, false)
 })
 
-function makeApi({ loadFileAttr, storeFileAttr, sharp, exif = false, head, pixels = 256 }) {
+function makeApi({ loadFileAttr, storeFileAttr, sharp, exif = false, head, pixels = 256,
+    largeFileThreshold = 100 }) {
     return {
         storageDir: '/tmp/',
-        getConfig: key => ({ log: false, pixels, regenerateBefore: null, exif, fullThreshold: 0, quality: 20 })[key],
+        log() {},
+        getConfig: key => ({ log: false, pixels, regenerateBefore: null, exif, fullThreshold: 0, quality: 20,
+            largeFileThreshold })[key],
         require(name) {
             if (name === 'fs') return { createReadStream: () => Readable.from(head), rm(_, __, cb) { cb() } }
             if (name === 'node:stream/consumers') return require(name)

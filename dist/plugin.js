@@ -1,4 +1,4 @@
-exports.version = 4.9
+exports.version = 5
 exports.description = "Show thumbnails for images in place of icons. It uses EXIF if available."
 exports.apiRequired = 8.65 // ctx.state.fileSource
 exports.frontend_js = 'main.js'
@@ -30,11 +30,26 @@ exports.config = {
         helperText: "Don't generate a thumbnail",
         xs: 6,
     },
+    largeFileThreshold: {
+        type: 'number',
+        unit: 'MB',
+        defaultValue: 100,
+        min: 1,
+        label: "Maximum file size to process",
+        helperText: "Larger files use an embedded thumbnail when available, or the default icon",
+        xs: 6,
+    },
     regenerateBefore: { type: 'date_time', helperText: "Older are regenerated", xs: 6 },
     log: { type: 'boolean', defaultValue: false, label: "Include thumbnails in log" },
     showTilesInMenu: { frontend: true, type: 'boolean', defaultValue: true, label: "Show tiles in file menu" },
     lazyLoading: { frontend: true,type: 'boolean', defaultValue: true, xs: 7, helperText: "Less traffic but slower displaying" },
-    exif: { type: 'boolean', defaultValue: true, label: "EXIF", xs: 5 },
+    exif: {
+        type: 'boolean',
+        defaultValue: true,
+        label: "EXIF",
+        helperText: "Use embedded thumbnails: faster, but may look blurry",
+        xs: 5,
+    },
     videos: {
         frontend: true,
         type: 'boolean',
@@ -43,6 +58,7 @@ exports.config = {
     },
 }
 exports.changelog = [
+    { "version": 5, "message": "Added a configurable size limit for thumbnail generation" },
     { "version": 4.9, "message": "Work on platforms that are not supported by Sharp" },
     { "version": 4.84, "message": "Fixed cached JPEG type and embedded EXIF thumbnails" },
     { "version": 4.83, "message": "Fewer black frames for videos" },
@@ -84,6 +100,7 @@ exports.init = async api => {
                 const customSize = 'w' in ctx.query || 'h' in ctx.query
                 const K = 'thumbnail'
                 const {size, mtimeMs: ts} = ctx.state.fileStats
+                const isLargeFile = size > api.getConfig('largeFileThreshold') * 1024 * 1024
                 // try cache
                 const cached = await loadFileAttr(fileSource, K).catch(failSilently)
                 const regenerateBefore = api.getConfig('regenerateBefore')
@@ -106,19 +123,21 @@ exports.init = async api => {
                 }
                 else {
                     // try reading exif thumbnail
-                    const head = api.getConfig('exif') && await buffer(createReadStream(fileSource, { start: 0, end: 96 * 1024 }))
+                    const head = (api.getConfig('exif') || isLargeFile)
+                        && await buffer(createReadStream(fileSource, { start: 0, end: 96 * 1024 }))
                     const thumb = head && readThumb(head)
                     if (thumb) {
                         ctx.set(header, 'embedded')
                         ctx.type = 'image/jpeg'
                         return ctx.body = thumb
                     }
+                    if (isLargeFile)
+                        return error(413, "Image too large to generate a thumbnail")
                     ctx.set(header, 'full')
                     // consider full file
                     if (size < api.getConfig('fullThreshold') * 1024)
                         return // leave it to existing ctx.body
                     // generate new thumbnail
-                    ctx.body.end = 1E8 // 100MB hard limit for file stream
                     const content = await buffer(ctx.body)
                     const quality = api.getConfig('quality')
                     ctx.set(header, 'generated')
